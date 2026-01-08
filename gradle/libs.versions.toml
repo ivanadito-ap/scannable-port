@@ -18,7 +18,7 @@ neoforge-loader = "2"
 
 [plugins]
 loom = { id = "dev.architectury.loom", version = "1.6-SNAPSHOT" }
-architectury = { id = "architectury-plugin", version = "3.4.155" }
+architectury = { id = "architectury-plugin", version = "3.4-SNAPSHOT" }
 shadow = { id = "com.github.johnrengelman.shadow", version = "8.1.1" }
 spotless = { id = "com.diffplug.spotless", version = "6.22.0" }
 
