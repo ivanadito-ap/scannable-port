@@ -1,11 +1,16 @@
 pluginManagement {
     repositories {
         exclusiveContent {
+            forRepository { maven("https://libraries.minecraft.net") }
+            filter {
+                includeGroup("com.mojang")
+            }
+        }
+        exclusiveContent {
             forRepository { maven("https://maven.architectury.dev") }
             filter {
                 includeGroup("architectury-plugin")
                 includeGroupByRegex("dev\\.architectury.*")
-                includeGroup("com.mojang")
             }
         }
         exclusiveContent {
