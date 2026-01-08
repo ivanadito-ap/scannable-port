@@ -22,7 +22,7 @@ jobs:
         cache-disabled: true
 
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew :neoforge:build
 
     - name: Upload JAR artifact
       uses: actions/upload-artifact@v4
