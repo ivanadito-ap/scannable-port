@@ -280,7 +280,7 @@ public final class ScanResultProviderBlock extends AbstractScanResultProvider {
             RenderSystem.colorMask(false, false, false, false);
             poseStack.pushPose();
             try {
-                Minecraft.getInstance().gameRenderer.renderItemInHand(poseStack, renderInfo, partialTicks);
+                Minecraft.getInstance().gameRenderer.renderItemInHand(, renderInfo, partialTicks, poseStack.last().pose());
             } catch (final Throwable e) {
                 LOGGER.catching(e);
             }
