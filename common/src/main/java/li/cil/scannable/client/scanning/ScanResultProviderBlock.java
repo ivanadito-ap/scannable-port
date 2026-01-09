@@ -17,6 +17,7 @@ import li.cil.scannable.client.ClientConfig;
 import li.cil.scannable.client.shader.Shaders;
 import li.cil.scannable.common.item.ScannerModuleItem;
 import li.cil.scannable.common.scanning.filter.IgnoredBlocks;
+import li.cil.scannable.mixin.client.GameRendererInvoker;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.Camera;
@@ -280,7 +281,7 @@ public final class ScanResultProviderBlock extends AbstractScanResultProvider {
             RenderSystem.colorMask(false, false, false, false);
             poseStack.pushPose();
             try {
-                Minecraft.getInstance().gameRenderer.renderItemInHand(renderInfo, partialTicks, poseStack.last().pose());
+                ((GameRendererInvoker) Minecraft.getInstance().gameRenderer).scannable$renderItemInHand(renderInfo, partialTicks, poseStack.last().pose());
             } catch (final Throwable e) {
                 LOGGER.catching(e);
             }
