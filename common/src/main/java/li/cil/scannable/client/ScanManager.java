@@ -258,13 +258,14 @@ public final class ScanManager {
             // Using shaders, so we render as game overlay; restore matrices as used for level rendering.
             RenderSystem.backupProjectionMatrix();
             RenderSystem.setProjectionMatrix(worldProjectionMatrix, VertexSorting.ORTHOGRAPHIC_Z);
-            RenderSystem.getModelViewStack().pushPose();
-            RenderSystem.getModelViewStack().last().pose().identity();
+            Matrix4fStack mv = RenderSystem.getModelViewStack();
+            mv.pushMatrix();
+            mv.identity();
             RenderSystem.applyModelViewMatrix();
 
             render(ScanResultRenderContext.GUI, partialTick, worldViewModelStack, worldProjectionMatrix);
 
-            RenderSystem.getModelViewStack().popPose();
+            mv.popMatrix();
             RenderSystem.applyModelViewMatrix();
             RenderSystem.restoreProjectionMatrix();
         }
