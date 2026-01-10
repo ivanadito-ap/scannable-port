@@ -1,5 +1,3 @@
-package li.cil.scannable.common.network;
-
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import li.cil.scannable.api.API;
@@ -8,6 +6,8 @@ import li.cil.scannable.common.network.message.RemoveConfiguredModuleItemAtMessa
 import li.cil.scannable.common.network.message.SetConfiguredModuleItemAtMessage;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 
@@ -40,9 +40,16 @@ public final class Network {
     @Environment(EnvType.CLIENT)
     public static void sendToServer(final AbstractMessage message) {
         final ResourceLocation loc = PACKET_MAP.get(message.getClass());
-        if (loc == null)
+        if (loc == null) {
             throw new IllegalArgumentException("Invalid message type");
-        final FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        }
+        
+        final Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) {
+            return;
+        }
+        
+        final RegistryFriendlyByteBuf buf = RegistryFriendlyByteBuf.decorator(mc.level.registryAccess()).apply(new FriendlyByteBuf(Unpooled.buffer()));
         message.toBytes(buf);
         NetworkManager.sendToServer(loc, buf);
     }
