@@ -4,20 +4,22 @@ import li.cil.scannable.api.API;
 import li.cil.scannable.client.ClientSetup;
 import li.cil.scannable.client.ScanManager;
 import li.cil.scannable.client.renderer.OverlayRenderer;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.Mod;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.RegisterGuiOverlaysEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.TickEvent;
 
-@OnlyIn(Dist.CLIENT)
-@Mod.EventBusSubscriber(modid = API.MOD_ID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+@EventBusSubscriber(modid = API.MOD_ID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public final class ClientSetupNeoForge {
+    private static final ResourceLocation SCANNER_RESULTS_LAYER =
+        new ResourceLocation(API.MOD_ID, "scanner_results");
+
     @SubscribeEvent
     public static void handleSetupEvent(final FMLClientSetupEvent event) {
         ClientSetup.initialize();
@@ -27,17 +29,15 @@ public final class ClientSetupNeoForge {
     }
 
     @SubscribeEvent
-    public static void handleRegisterOverlaysEvent(final RegisterGuiOverlaysEvent event) {
-        event.registerAboveAll(new ResourceLocation(API.MOD_ID, "scanner_results"), (gui, poseStack, partialTick, width, height) -> {
+    public static void handleRegisterGuiLayers(final RegisterGuiLayersEvent event) {
+        event.registerAboveAll(SCANNER_RESULTS_LAYER, (GuiGraphics graphics, float partialTick) -> {
             ScanManager.renderGui(partialTick);
-            OverlayRenderer.render(poseStack, partialTick);
+            OverlayRenderer.render(graphics.pose(), partialTick);
         });
     }
 
-    public static void handleClientTickEvent(final TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            ScanManager.tick();
-        }
+    public static void handleClientTickEvent(final ClientTickEvent.Post event) {
+        ScanManager.tick();
     }
 
     public static void handleRenderLevelEvent(final RenderLevelStageEvent event) {
