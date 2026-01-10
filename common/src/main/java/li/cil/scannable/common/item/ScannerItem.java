@@ -81,13 +81,13 @@ public final class ScannerItem extends ModItem {
 
                     @Override
                     public AbstractContainerMenu createMenu(final int id, final Inventory inventory, final Player player) {
-                        return new ScannerContainerMenu(id, inventory, hand, ScannerContainer.of(stack));
+                        return new ScannerContainerMenu(id, inventory, hand, ScannerContainer.of(stack, player.level().registryAccess()));
                     }
                 }, buffer -> buffer.writeEnum(hand));
             }
         } else {
             final List<ItemStack> modules = new ArrayList<>();
-            if (!collectModules(stack, modules)) {
+            if (!collectModules(level, stack, modules)) {
                 if (!level.isClientSide()) {
                     player.displayClientMessage(Strings.MESSAGE_NO_SCAN_MODULES, true);
                 }
@@ -142,7 +142,7 @@ public final class ScannerItem extends ModItem {
         }
 
         final List<ItemStack> modules = new ArrayList<>();
-        if (!collectModules(stack, modules)) {
+        if (!collectModules(level, stack, modules)) {
             return stack;
         }
 
@@ -200,8 +200,8 @@ public final class ScannerItem extends ModItem {
         return extracted >= totalCost;
     }
 
-    private static boolean collectModules(final ItemStack scanner, final List<ItemStack> modules) {
-        final ScannerContainer container = ScannerContainer.of(scanner);
+    private static boolean collectModules(final Level level, final ItemStack scanner, final List<ItemStack> modules) {
+        final ScannerContainer container = ScannerContainer.of(scanner, level.registryAccess());
         final Container activeModules = container.getActiveModules();
         boolean hasScannerModules = false;
         for (int slot = 0; slot < activeModules.getContainerSize(); slot++) {
