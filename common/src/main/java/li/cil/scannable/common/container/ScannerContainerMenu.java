@@ -1,7 +1,7 @@
 package li.cil.scannable.common.container;
 
 import li.cil.scannable.common.inventory.ScannerContainer;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
@@ -11,7 +11,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
 public final class ScannerContainerMenu extends AbstractContainerMenu {
-    public static ScannerContainerMenu create(final int windowId, final Inventory inventory, final RegistryFriendlyByteBuf buffer) {
+    public static ScannerContainerMenu create(final int windowId, final Inventory inventory, final FriendlyByteBuf buffer) {
         final InteractionHand hand = buffer.readEnum(InteractionHand.class);
         return new ScannerContainerMenu(
             windowId,
