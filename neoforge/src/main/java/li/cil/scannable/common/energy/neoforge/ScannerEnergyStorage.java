@@ -3,9 +3,11 @@ package li.cil.scannable.common.energy.neoforge;
 import li.cil.scannable.common.config.CommonConfig;
 import li.cil.scannable.common.item.Items;
 import li.cil.scannable.common.item.ScannerItem;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.neoforged.neoforge.energy.EnergyStorage;
 
 public final class ScannerEnergyStorage extends EnergyStorage {
@@ -17,12 +19,9 @@ public final class ScannerEnergyStorage extends EnergyStorage {
         super(CommonConfig.energyCapacityScanner);
         this.container = container;
 
-        final CompoundTag tag = container.getTag();
-        if (tag != null && tag.contains(TAG_ENERGY, Tag.TAG_INT)) {
-            final var energyTag = tag.get(TAG_ENERGY);
-            if (energyTag != null) {
-                deserializeNBT(energyTag);
-            }
+        final CompoundTag tag = container.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        if (tag.contains(TAG_ENERGY, Tag.TAG_INT)) {
+            this.energy = tag.getInt(TAG_ENERGY);
         }
     }
 
@@ -43,12 +42,11 @@ public final class ScannerEnergyStorage extends EnergyStorage {
             return 0;
         }
 
-        final int energyReceived = super.receiveEnergy(maxReceive, simulate);
-        if (!simulate && energyReceived != 0) {
-            container.addTagElement(TAG_ENERGY, serializeNBT());
+        final int received = super.receiveEnergy(maxReceive, simulate);
+        if (!simulate && received != 0) {
+            writeEnergyToStack();
         }
-
-        return energyReceived;
+        return received;
     }
 
     @Override
@@ -57,11 +55,21 @@ public final class ScannerEnergyStorage extends EnergyStorage {
             return 0;
         }
 
-        final int energyExtracted = super.extractEnergy(maxExtract, simulate);
-        if (!simulate && energyExtracted != 0) {
-            container.addTagElement(TAG_ENERGY, serializeNBT());
+        final int extracted = super.extractEnergy(maxExtract, simulate);
+        if (!simulate && extracted != 0) {
+            writeEnergyToStack();
         }
+        return extracted;
+    }
 
-        return energyExtracted;
+    private void writeEnergyToStack() {
+        CustomData.update(DataComponents.CUSTOM_DATA, container, tag -> {
+            if (this.energy <= 0) {
+                tag.remove(TAG_ENERGY);
+            } else {
+                tag.putInt(TAG_ENERGY, this.energy);
+            }
+        });
     }
 }
+
