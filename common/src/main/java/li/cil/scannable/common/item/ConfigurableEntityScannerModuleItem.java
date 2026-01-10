@@ -7,6 +7,7 @@ import li.cil.scannable.common.container.EntityModuleContainerMenu;
 import li.cil.scannable.common.scanning.ConfigurableEntityScannerModule;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -24,15 +25,17 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class ConfigurableEntityScannerModuleItem extends ScannerModuleItem {
     private static final String TAG_ENTITY_DEPRECATED = "entity";
@@ -40,25 +43,33 @@ public final class ConfigurableEntityScannerModuleItem extends ScannerModuleItem
     private static final String TAG_IS_LOCKED = "isLocked";
 
     public static boolean isLocked(final ItemStack stack) {
-        final CompoundTag tag = stack.getTag();
-        return tag != null && tag.getBoolean(TAG_IS_LOCKED);
+        final CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return false;
+        }
+        return data.copyTag().getBoolean(TAG_IS_LOCKED);
     }
 
     public static List<EntityType<?>> getEntityTypes(final ItemStack stack) {
-        final CompoundTag tag = stack.getTag();
-        if (tag == null || !(tag.contains(TAG_ENTITY_DEPRECATED, Tag.TAG_STRING) || tag.contains(TAG_ENTITIES, Tag.TAG_LIST))) {
+        CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
             return Collections.emptyList();
         }
 
-        upgradeData(tag);
+        CompoundTag tag = data.copyTag();
+
+        if (tag.contains(TAG_ENTITY_DEPRECATED, Tag.TAG_STRING)) {
+            CustomData.update(DataComponents.CUSTOM_DATA, stack, ConfigurableEntityScannerModuleItem::upgradeData);
+            tag = stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag();
+        }
+
+        if (!tag.contains(TAG_ENTITIES, Tag.TAG_LIST)) {
+            return Collections.emptyList();
+        }
 
         final ListTag list = tag.getList(TAG_ENTITIES, Tag.TAG_STRING);
         final List<EntityType<?>> result = new ArrayList<>();
-        list.forEach(item -> {
-            final Optional<EntityType<?>> entityType = EntityType.byString(item.getAsString());
-            entityType.ifPresent(result::add);
-        });
-
+        list.forEach(item -> EntityType.byString(item.getAsString()).ifPresent(result::add));
         return result;
     }
 
@@ -68,26 +79,35 @@ public final class ConfigurableEntityScannerModuleItem extends ScannerModuleItem
             return false;
         }
 
-        final CompoundTag tag = stack.getOrCreateTag();
-        if (tag.getBoolean(TAG_IS_LOCKED)) {
-            return false;
-        }
-
+        final AtomicBoolean result = new AtomicBoolean(false);
         final StringTag itemNbt = StringTag.valueOf(registryName.get().location().toString());
 
-        final ListTag list = tag.getList(TAG_ENTITIES, Tag.TAG_STRING);
-        if (list.contains(itemNbt)) {
-            return true;
-        }
-        if (list.size() >= Constants.CONFIGURABLE_MODULE_SLOTS) {
-            return false;
-        }
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            upgradeData(tag);
 
-        // getList may have just created a new empty list.
-        tag.put(TAG_ENTITIES, list);
+            if (tag.getBoolean(TAG_IS_LOCKED)) {
+                result.set(false);
+                return;
+            }
 
-        list.add(itemNbt);
-        return true;
+            final ListTag list = tag.getList(TAG_ENTITIES, Tag.TAG_STRING);
+            if (list.contains(itemNbt)) {
+                result.set(true);
+                return;
+            }
+            if (list.size() >= Constants.CONFIGURABLE_MODULE_SLOTS) {
+                result.set(false);
+                return;
+            }
+
+            // getList may have created a new empty list.
+            tag.put(TAG_ENTITIES, list);
+
+            list.add(itemNbt);
+            result.set(true);
+        });
+
+        return result.get();
     }
 
     public static void setEntityTypeAt(final ItemStack stack, final int index, final EntityType<?> entityType) {
@@ -100,30 +120,33 @@ public final class ConfigurableEntityScannerModuleItem extends ScannerModuleItem
             return;
         }
 
-        final CompoundTag tag = stack.getOrCreateTag();
-        if (tag.getBoolean(TAG_IS_LOCKED)) {
-            return;
-        }
-
         final StringTag itemNbt = StringTag.valueOf(registryName.get().location().toString());
 
-        final ListTag list = tag.getList(TAG_ENTITIES, Tag.TAG_STRING);
-        final int oldIndex = list.indexOf(itemNbt);
-        if (oldIndex == index) {
-            return;
-        }
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            upgradeData(tag);
 
-        if (index >= list.size()) {
-            list.add(itemNbt);
-        } else {
-            list.set(index, itemNbt);
-        }
+            if (tag.getBoolean(TAG_IS_LOCKED)) {
+                return;
+            }
 
-        if (oldIndex >= 0) {
-            list.remove(oldIndex);
-        }
+            final ListTag list = tag.getList(TAG_ENTITIES, Tag.TAG_STRING);
+            final int oldIndex = list.indexOf(itemNbt);
+            if (oldIndex == index) {
+                return;
+            }
 
-        tag.put(TAG_ENTITIES, list);
+            if (index >= list.size()) {
+                list.add(itemNbt);
+            } else {
+                list.set(index, itemNbt);
+            }
+
+            if (oldIndex >= 0) {
+                list.remove(oldIndex);
+            }
+
+            tag.put(TAG_ENTITIES, list);
+        });
     }
 
     public static void removeEntityTypeAt(final ItemStack stack, final int index) {
@@ -131,15 +154,19 @@ public final class ConfigurableEntityScannerModuleItem extends ScannerModuleItem
             return;
         }
 
-        final CompoundTag tag = stack.getOrCreateTag();
-        if (tag.getBoolean(TAG_IS_LOCKED)) {
-            return;
-        }
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            upgradeData(tag);
 
-        final ListTag list = tag.getList(TAG_ENTITIES, Tag.TAG_STRING);
-        if (index < list.size()) {
-            list.remove(index);
-        }
+            if (tag.getBoolean(TAG_IS_LOCKED)) {
+                return;
+            }
+
+            final ListTag list = tag.getList(TAG_ENTITIES, Tag.TAG_STRING);
+            if (index < list.size()) {
+                list.remove(index);
+                tag.put(TAG_ENTITIES, list);
+            }
+        });
     }
 
     private static void upgradeData(final CompoundTag tag) {
@@ -162,8 +189,11 @@ public final class ConfigurableEntityScannerModuleItem extends ScannerModuleItem
 
     @Environment(EnvType.CLIENT)
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
+    public void appendHoverText(final ItemStack stack,
+                                final Item.TooltipContext context,
+                                final List<Component> tooltip,
+                                final TooltipFlag flag) {
+        super.appendHoverText(stack, context, tooltip, flag);
 
         final List<EntityType<?>> entities = getEntityTypes(stack);
         if (!entities.isEmpty()) {
@@ -212,3 +242,4 @@ public final class ConfigurableEntityScannerModuleItem extends ScannerModuleItem
         return InteractionResult.sidedSuccess(player.level().isClientSide());
     }
 }
+
