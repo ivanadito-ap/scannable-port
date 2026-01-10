@@ -9,6 +9,7 @@ import li.cil.scannable.common.scanning.filter.IgnoredBlocks;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.ResourceLocationException;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -25,6 +26,8 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.context.UseOnContext;
@@ -34,7 +37,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,13 +49,20 @@ public final class ConfigurableBlockScannerModuleItem extends ScannerModuleItem 
     private static final String TAG_IS_LOCKED = "isLocked";
 
     public static boolean isLocked(final ItemStack stack) {
-        final CompoundTag tag = stack.getTag();
-        return tag != null && tag.getBoolean(TAG_IS_LOCKED);
+        final CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return false;
+        }
+         return data.copyTag().getBoolean(TAG_IS_LOCKED);
     }
 
     public static List<Block> getBlocks(final ItemStack stack) {
-        final CompoundTag tag = stack.getTag();
-        if (tag == null || !tag.contains(TAG_BLOCKS, Tag.TAG_LIST)) {
+        final CustomData data = stack.get(DataComponents.CUSTOM_DATA);
+        if (data == null) {
+            return Collections.emptyList();
+        }
+        final CompoundTag tag = data.copyTag();
+        if (!tag.contains(TAG_BLOCKS, Tag.TAG_LIST)) {
             return Collections.emptyList();
         }
 
@@ -76,27 +85,33 @@ public final class ConfigurableBlockScannerModuleItem extends ScannerModuleItem 
         if (registryName.isEmpty()) {
             return false;
         }
+        
+        final java.util.concurrent.atomic.AtomicBoolean result = new java.util.concurrent.atomic.AtomicBoolean(false);
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            if (tag.getBoolean(TAG_IS_LOCKED)) {
+                result.set(false);
+                return;
+            }
 
-        final CompoundTag tag = stack.getOrCreateTag();
-        if (tag.getBoolean(TAG_IS_LOCKED)) {
-            return false;
-        }
+            final StringTag itemNbt = StringTag.valueOf(registryName.get().location().toString());
+            final ListTag list = tag.getList(TAG_BLOCKS, Tag.TAG_STRING);
+            
+            if (list.contains(itemNbt)) {
+                result.set(true);
+                return;
+            }
+            if (list.size() >= Constants.CONFIGURABLE_MODULE_SLOTS) {
+                result.set(false);
+                return;
+            }
 
-        final StringTag itemNbt = StringTag.valueOf(registryName.get().location().toString());
-
-        final ListTag list = tag.getList(TAG_BLOCKS, Tag.TAG_STRING);
-        if (list.contains(itemNbt)) {
-            return true;
-        }
-        if (list.size() >= Constants.CONFIGURABLE_MODULE_SLOTS) {
-            return false;
-        }
-
-        // getList may have just created a new empty list.
-        tag.put(TAG_BLOCKS, list);
-
-        list.add(itemNbt);
-        return true;
+            // getList may have just created a new empty list.
+            tag.put(TAG_BLOCKS, list);
+            list.add(itemNbt);
+            result.set(true);
+        });
+        
+        return result.get();
     }
 
     public static void setBlockAt(final ItemStack stack, final int index, final Block block) {
@@ -108,47 +123,50 @@ public final class ConfigurableBlockScannerModuleItem extends ScannerModuleItem 
         if (registryName.isEmpty()) {
             return;
         }
-
-        final CompoundTag tag = stack.getOrCreateTag();
-        if (tag.getBoolean(TAG_IS_LOCKED)) {
-            return;
-        }
-
-        final StringTag itemNbt = StringTag.valueOf(registryName.get().location().toString());
-
-        final ListTag list = tag.getList(TAG_BLOCKS, Tag.TAG_STRING);
-        final int oldIndex = list.indexOf(itemNbt);
-        if (oldIndex == index) {
-            return;
-        }
-
-        if (index >= list.size()) {
-            list.add(itemNbt);
-        } else {
-            list.set(index, itemNbt);
-        }
-
-        if (oldIndex >= 0) {
-            list.remove(oldIndex);
-        }
-
-        tag.put(TAG_BLOCKS, list);
+        
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            if (tag.getBoolean(TAG_IS_LOCKED)) {
+                return;
+            }
+            
+            final StringTag itemNbt = StringTag.valueOf(registryName.get().location().toString());
+            
+            final ListTag list = tag.getList(TAG_BLOCKS, Tag.TAG_STRING);
+            final int oldIndex = list.indexOf(itemNbt);
+            if (oldIndex == index) {
+                return;
+            }
+            
+            if (index >= list.size()) {
+                list.add(itemNbt);
+            } else {
+                list.set(index, itemNbt);
+            }
+            
+            if (oldIndex >= 0) {
+                list.remove(oldIndex);
+            }
+            
+            tag.put(TAG_BLOCKS, list);
+        });
     }
 
     public static void removeBlockAt(final ItemStack stack, final int index) {
         if (index < 0 || index >= Constants.CONFIGURABLE_MODULE_SLOTS) {
             return;
         }
-
-        final CompoundTag tag = stack.getOrCreateTag();
-        if (tag.getBoolean(TAG_IS_LOCKED)) {
-            return;
-        }
-
-        final ListTag list = tag.getList(TAG_BLOCKS, Tag.TAG_STRING);
-        if (index < list.size()) {
-            list.remove(index);
-        }
+        
+        CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> {
+            if (tag.getBoolean(TAG_IS_LOCKED)) {
+                return;
+            }
+            
+            final ListTag list = tag.getList(TAG_BLOCKS, Tag.TAG_STRING);
+            if (index < list.size()) {
+                list.remove(index);
+                tag.put(TAG_BLOCKS, list);
+            }
+        });
     }
 
     // --------------------------------------------------------------------- //
@@ -162,8 +180,8 @@ public final class ConfigurableBlockScannerModuleItem extends ScannerModuleItem 
 
     @Environment(EnvType.CLIENT)
     @Override
-    public void appendHoverText(final ItemStack stack, @Nullable final Level level, final List<Component> tooltip, final TooltipFlag flag) {
-        super.appendHoverText(stack, level, tooltip, flag);
+    public void appendHoverText(final ItemStack stack, final Item.TooltipContext context, final List<Component> tooltip, final TooltipFlag flag) {
+        super.appendHoverText(stack, context, tooltip, flag);
 
         final List<Block> blocks = getBlocks(stack);
         if (!blocks.isEmpty()) {
