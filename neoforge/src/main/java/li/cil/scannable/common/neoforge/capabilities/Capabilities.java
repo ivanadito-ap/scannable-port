@@ -24,7 +24,7 @@ public final class Capabilities {
 
     @SubscribeEvent
     public static void initialize(final RegisterCapabilitiesEvent event) {
-        event.registerItem(ItemHandler.ITEM, (stack, context) -> new InvWrapper(ScannerContainer.of(stack)),
+        event.registerItem(ItemHandler.ITEM, (stack, context) -> new InvWrapper(ScannerContainer.of(stack, context.level().registryAccess())),
             Items.SCANNER.get());
         event.registerItem(EnergyStorage.ITEM, (stack, context) -> ScannerEnergyStorage.of(stack),
             Items.SCANNER.get());
