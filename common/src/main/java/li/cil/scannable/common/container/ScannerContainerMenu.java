@@ -57,6 +57,10 @@ public final class ScannerContainerMenu extends AbstractContainerMenu {
         }
     }
 
+    public ItemStack getScannerStack() {
+        return stack;
+    }
+
     @Override
     public boolean stillValid(final Player player) {
         return player == this.player && player.getItemInHand(hand) == stack;

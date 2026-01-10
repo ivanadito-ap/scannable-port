@@ -66,12 +66,12 @@ public class ScannerContainerScreen extends AbstractContainerScreen<ScannerConta
 
     @Override
     protected void slotClicked(@Nullable final Slot slot, final int slotId, final int mouseButton, final ClickType type) {
-        if (slot != null) {
-            final ItemStack scannerItemStack = menu.getPlayer().getItemInHand(menu.getHand());
+        if (slot != null && this.minecraft != null && this.minecraft.player != null) {
+            final ItemStack scannerItemStack = menu.getScannerStack();
             if (slot.getItem() == scannerItemStack) {
                 return;
             }
-            if (type == ClickType.SWAP && menu.getPlayer().getInventory().getItem(mouseButton) == scannerItemStack) {
+            if (type == ClickType.SWAP && this.minecraft.player.getInventory().getItem(mouseButton) == scannerItemStack) {
                 return;
             }
         }
