@@ -1,3 +1,5 @@
+package li.cil.scannable.common.network;
+
 import dev.architectury.networking.NetworkManager;
 import io.netty.buffer.Unpooled;
 import li.cil.scannable.api.API;
