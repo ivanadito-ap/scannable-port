@@ -32,7 +32,7 @@ public final class ClientSetupNeoForge {
     public static void handleRegisterGuiLayers(final RegisterGuiLayersEvent event) {
         event.registerAboveAll(SCANNER_RESULTS_LAYER, (GuiGraphics graphics, float partialTick) -> {
             ScanManager.renderGui(partialTick);
-            OverlayRenderer.render(graphics.pose(), partialTick);
+            OverlayRenderer.render(graphics, partialTick);
         });
     }
 
