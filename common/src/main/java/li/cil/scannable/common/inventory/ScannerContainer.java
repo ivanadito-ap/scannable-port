@@ -3,11 +3,14 @@ package li.cil.scannable.common.inventory;
 import li.cil.scannable.common.item.Items;
 import li.cil.scannable.common.item.ScannerItem;
 import li.cil.scannable.common.item.ScannerModuleItem;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 
 public final class ScannerContainer extends SimpleContainer {
     private static final int ACTIVE_MODULE_COUNT = 3;
@@ -19,22 +22,28 @@ public final class ScannerContainer extends SimpleContainer {
     private static final String TAG_ITEM = "item";
 
     private final ItemStack container;
+    private final HolderLookup.Provider registries;
 
-    public ScannerContainer(final ItemStack container) {
+    public ScannerContainer(final ItemStack container, final HolderLookup.Provider registries) {
         super(TOTAL_MODULE_COUNT);
         this.container = container;
+        this.registries = registries;
 
-        final CompoundTag tag = container.getTag();
-        if (tag != null && tag.contains(TAG_ITEMS, Tag.TAG_LIST)) {
-            fromTag(tag.getList(TAG_ITEMS, Tag.TAG_COMPOUND));
+        // Read stored modules from CUSTOM_DATA component.
+        final CustomData data = container.get(DataComponents.CUSTOM_DATA);
+        if (data != null) {
+            final CompoundTag tag = data.copyTag();
+            if (tag.contains(TAG_ITEMS, Tag.TAG_LIST)) {
+                fromTag(tag.getList(TAG_ITEMS, Tag.TAG_COMPOUND), registries);
+            }
         }
     }
 
-    public static ScannerContainer of(final ItemStack container) {
+    public static ScannerContainer of(final ItemStack container, final HolderLookup.Provider registries) {
         if (container.getItem() instanceof ScannerItem) {
-            return new ScannerContainer(container);
+            return new ScannerContainer(container, registries);
         } else {
-            return new ScannerContainer(new ItemStack(Items.SCANNER.get()));
+            return new ScannerContainer(new ItemStack(Items.SCANNER.get()), registries);
         }
     }
 
@@ -64,7 +73,16 @@ public final class ScannerContainer extends SimpleContainer {
     @Override
     public void setChanged() {
         super.setChanged();
-        this.container.addTagElement(TAG_ITEMS, this.createTag());
+
+        // Write modules back into CUSTOM_DATA.
+        final ListTag items = this.createTag(this.registries);
+        CustomData.update(DataComponents.CUSTOM_DATA, this.container, tag -> {
+            if (items.isEmpty()) {
+                tag.remove(TAG_ITEMS);
+            } else {
+                tag.put(TAG_ITEMS, items);
+            }
+        });
     }
 
     // --------------------------------------------------------------------- //
@@ -85,7 +103,7 @@ public final class ScannerContainer extends SimpleContainer {
     }
 
     @Override
-    public void fromTag(final ListTag tag) {
+    public void fromTag(final ListTag tag, final HolderLookup.Provider registries) {
         for (int i = 0; i < this.getContainerSize(); ++i) {
             this.setItem(i, ItemStack.EMPTY);
         }
@@ -94,13 +112,13 @@ public final class ScannerContainer extends SimpleContainer {
             final CompoundTag slotTag = tag.getCompound(i);
             final int slot = slotTag.getByte(TAG_SLOT) & 0xFF;
             if (slot < this.getContainerSize()) {
-                this.setItem(slot, ItemStack.of(slotTag.getCompound(TAG_ITEM)));
+                this.setItem(slot, ItemStack.parseOptional(registries, slotTag.getCompound(TAG_ITEM)));
             }
         }
     }
 
     @Override
-    public ListTag createTag() {
+    public ListTag createTag(final HolderLookup.Provider registries) {
         final ListTag tag = new ListTag();
 
         for (int i = 0; i < this.getContainerSize(); ++i) {
@@ -110,7 +128,7 @@ public final class ScannerContainer extends SimpleContainer {
                 slotTag.putByte(TAG_SLOT, (byte) i);
 
                 final CompoundTag itemTag = new CompoundTag();
-                stack.save(itemTag);
+                stack.save(registries, itemTag); // 1.20.5+ requires registry context
                 slotTag.put(TAG_ITEM, itemTag);
 
                 tag.add(slotTag);
@@ -129,10 +147,6 @@ public final class ScannerContainer extends SimpleContainer {
         }
 
         // External modules declared via capability/interface.
-        if (ScannerModuleItem.getModule(stack).isPresent()) {
-            return true;
-        }
-
-        return false;
+        return ScannerModuleItem.getModule(stack).isPresent();
     }
 }
