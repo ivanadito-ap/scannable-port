@@ -66,7 +66,7 @@ public final class ScannerContainerMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(final Player player) {
-        return player == this.player && !player.getItemInHand(hand).isEmpty() && player.getItemInHand(hand) == stack.getItem();
+        return player == this.player && !player.getItemInHand(hand).isEmpty() && player.getItemInHand(hand).getItem() == stack.getItem();
     }
 
     @Override
