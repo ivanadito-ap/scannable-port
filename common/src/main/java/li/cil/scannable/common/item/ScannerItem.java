@@ -81,7 +81,8 @@ public final class ScannerItem extends ModItem {
 
                     @Override
                     public AbstractContainerMenu createMenu(final int id, final Inventory inventory, final Player player) {
-                        return new ScannerContainerMenu(id, inventory, hand, ScannerContainer.of(stack, player.level().registryAccess()));
+                        final ItemStack current = player.getItemInHand(hand);
+			return new ScannerContainerMenu(id, inventory, hand, ScannerContainer.of(current, player.level().reigistryAccess()));
                     }
                 }, buffer -> buffer.writeEnum(hand));
             }
