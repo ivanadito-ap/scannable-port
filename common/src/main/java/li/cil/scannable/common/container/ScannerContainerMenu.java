@@ -9,6 +9,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 
 public final class ScannerContainerMenu extends AbstractContainerMenu {
     public static ScannerContainerMenu create(final int windowId, final Inventory inventory, final FriendlyByteBuf buffer) {
@@ -26,6 +27,7 @@ public final class ScannerContainerMenu extends AbstractContainerMenu {
     private final Player player;
     private final InteractionHand hand;
     private final ItemStack stack;
+    private final ScannerContainer itemHandler;
 
     // --------------------------------------------------------------------- //
 
@@ -35,6 +37,7 @@ public final class ScannerContainerMenu extends AbstractContainerMenu {
         this.player = inventory.player;
         this.hand = hand;
         this.stack = player.getItemInHand(hand);
+	this.itemHandler = itemHandler;
 
         final Container activeModules = itemHandler.getActiveModules();
         for (int slot = 0; slot < activeModules.getContainerSize(); ++slot) {
@@ -63,7 +66,34 @@ public final class ScannerContainerMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(final Player player) {
-        return player == this.player && player.getItemInHand(hand) == stack;
+        return player == this.player && !player.getItemInHand(hand).isEmpty() && player.getItemInHand(hand) == stack.getItem();
+    }
+
+    @Override
+    public void removed(final Player player) {
+        super.removed(player);
+
+	final Level level = player.level();
+	if (!level.isClientSide) {
+	    final ItemStack current = player.getItemInHand(hand);
+
+	    if (!current.isEmpty() && current.getItem() == stack.getItem()) {
+	        final ScannerContainer bound = ScannerContainer.of(current, level.registryAccess());
+
+		for (int i = 0; i < itemHandler.getContainerSize(); i++) {
+		    bound.setItem(i, itemHandler.getItem(i).copy());
+		}
+
+		bound.setChanged();
+	    } else {
+	        for (int i = 0; i < itemHandler.getContainerSize(); i++) {
+		    final ItemStack module = itemHandler.removeItemNoUpdate(i);
+		    if (!module.isEmpty()) {
+		        player.getInventory().placeItemBackInInventory(module);
+		    }
+		}
+	    }
+	}
     }
 
     @Override

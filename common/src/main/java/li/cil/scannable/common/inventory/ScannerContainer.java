@@ -60,14 +60,14 @@ public final class ScannerContainer extends SimpleContainer {
 
     @Override
     public void setItem(final int i, final ItemStack itemStack) {
-        if (canPlaceItem(i, itemStack)) {
+        if (itemStack.isEmpty() || canPlaceItem(i, itemStack)) {
             super.setItem(i, itemStack);
         }
     }
 
     @Override
     public boolean canPlaceItem(final int i, final ItemStack stack) {
-        return isModule(stack) && super.canPlaceItem(i, stack);
+        return (stack.isEmpty() || isModule(stack)) && super.canPlaceItem(i, stack);
     }
 
     @Override

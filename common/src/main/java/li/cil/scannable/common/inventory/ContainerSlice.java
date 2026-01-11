@@ -84,7 +84,7 @@ public final class ContainerSlice implements Container, Iterable<ItemStack> {
 
     @Override
     public boolean canPlaceItem(final int i, final ItemStack itemStack) {
-        return container.canPlaceItem(i, itemStack);
+        return isIndexInBounds(i) && container.canPlaceItem(offset + i, itemStack);
     }
 
     // --------------------------------------------------------------------- //
