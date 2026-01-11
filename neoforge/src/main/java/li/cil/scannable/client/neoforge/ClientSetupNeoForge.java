@@ -4,6 +4,10 @@ import li.cil.scannable.api.API;
 import li.cil.scannable.client.ClientSetup;
 import li.cil.scannable.client.ScanManager;
 import li.cil.scannable.client.renderer.OverlayRenderer;
+import li.cil.scannable.client.gui.ConfigurableBlockScannerModuleContainerScreen;
+import li.cil.scannable.client.gui.ConfigurableEntityScannerModuleContainerScreen;
+import li.cil.scannable.client.gui.ScannerContainerScreen;
+import li.cil.scannable.common.container.Containers;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
@@ -12,6 +16,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
 import net.neoforged.neoforge.common.NeoForge;
 
@@ -34,6 +39,13 @@ public final class ClientSetupNeoForge {
             ScanManager.renderGui(partialTick);
             OverlayRenderer.render(graphics, partialTick);
         });
+    }
+
+    @SubscribeEvent
+    public static void handleRegisterMenuScreens(final RegisterMenuScreensEvent event) {
+        event.register(Containers.SCANNER_CONTAINER.get(), ScannerContainerScreen::new);
+	event.register(Containers.BLOCK_MODULE_CONTAINER.get(), ConfigurableBlockScannerModuleContainerScreen::new);
+	event.register(Containers.ENTITY_MODULE_CONTAINER.get(), ConfigurableEntityScannerModuleContainerScreen::new);
     }
 
     public static void handleClientTickEvent(final ClientTickEvent.Post event) {
